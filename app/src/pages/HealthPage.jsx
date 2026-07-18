@@ -6,7 +6,6 @@ import {
 } from '../lib/storage'
 
 const SYMPTOMS = ['노란색 구토', '식욕 저하', '배변 변화', '활동량 감소', '기타']
-const MAX_NEARBY_DISTANCE_KM = 12
 
 const CHECK_OPTIONS = [
   '한 번 발생함',
@@ -131,13 +130,7 @@ async function fetchNearbyVeterinaries(lat, lon) {
     throw new Error('실시간 병원 조회 결과가 없어요.')
   }
 
-  const nearbyOnly = hospitals.filter((item) => item.distanceKm <= MAX_NEARBY_DISTANCE_KM)
-
-  if (nearbyOnly.length === 0) {
-    throw new Error('가까운 반경 내 동물병원을 찾지 못했어요.')
-  }
-
-  return nearbyOnly.slice(0, 7)
+  return hospitals.slice(0, 7)
 }
 
 function HealthPage() {
@@ -182,9 +175,7 @@ function HealthPage() {
           setIsError(false)
         } catch {
           setHospitals([])
-          setMessage(
-            `현재 위치 기준 ${MAX_NEARBY_DISTANCE_KM}km 이내 병원을 찾지 못했어요. 위치를 다시 확인한 뒤 재시도해 주세요.`,
-          )
+          setMessage('주변 동물병원 정보를 찾지 못했어요. 위치를 다시 확인한 뒤 재시도해 주세요.')
           setIsError(true)
         } finally {
           setIsLoadingHospitals(false)
