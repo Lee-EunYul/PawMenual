@@ -3,7 +3,7 @@
 프로필 기반 식생활 가이드, 건강 상태 기록, 위치 기반 주변 동물병원 안내, 훈련 기록을 한곳에서 관리할 수 있도록 만든 프로젝트입니다.
 
 ## 웹페이지
-[PAWMENUAL](https://thankful-sand-0954bbe00.7.azurestaticapps.net/)
+[PAWMENUAL](https://thankful-sand-0954bbe00.7.azurestaticapps.net/profile)
 
 위 링크를 클릭해서 접속하세요.
 
