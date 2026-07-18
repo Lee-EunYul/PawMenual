@@ -53,32 +53,32 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
   return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-function fallbackHospitals(lat, lon) {
-  return [
-    { id: 'fallback-1', name: '우리동네 동물병원', lat: lat + 0.006, lon: lon + 0.003 },
-    { id: 'fallback-2', name: '포메케어 동물의료센터', lat: lat - 0.004, lon: lon + 0.005 },
-    { id: 'fallback-3', name: '안심24시 동물병원', lat: lat + 0.003, lon: lon - 0.006 },
-  ].map((item) => ({
-    ...item,
-    distanceKm: getDistanceKm(lat, lon, item.lat, item.lon),
-    mapUrl: `https://www.openstreetmap.org/?mlat=${item.lat}&mlon=${item.lon}#map=16/${item.lat}/${item.lon}`,
-  }))
+async function fetchOverpassHospitals({ endpoint, lat, lon, radius }) {
+  const query = `[out:json][timeout:20];(node["amenity"="veterinary"](around:${radius},${lat},${lon});way["amenity"="veterinary"](around:${radius},${lat},${lon});relation["amenity"="veterinary"](around:${radius},${lat},${lon}););out center 50;`
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 12000)
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      throw new Error('병원 정보를 불러오지 못했어요.')
+    }
+
+    const data = await response.json()
+    return data.elements || []
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
-async function fetchNearbyVeterinaries(lat, lon) {
-  const query = `[out:json][timeout:20];(node["amenity"="veterinary"](around:6000,${lat},${lon});way["amenity"="veterinary"](around:6000,${lat},${lon});relation["amenity"="veterinary"](around:6000,${lat},${lon}););out center 20;`
-  const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`
-
-  const response = await fetch(url)
-
-  if (!response.ok) {
-    throw new Error('병원 정보를 불러오지 못했어요.')
-  }
-
-  const data = await response.json()
-  const elements = data.elements || []
-
-  const hospitals = elements
+function normalizeHospitals(elements, originLat, originLon) {
+  return elements
     .map((element) => {
       const latitude = element.lat ?? element.center?.lat
       const longitude = element.lon ?? element.center?.lon
@@ -90,22 +90,55 @@ async function fetchNearbyVeterinaries(lat, lon) {
       const name = element.tags?.name || '이름이 확인되지 않은 동물병원'
 
       return {
-        id: String(element.id),
+        id: `${element.type}-${element.id}`,
         name,
         lat: latitude,
         lon: longitude,
-        distanceKm: getDistanceKm(lat, lon, latitude, longitude),
+        distanceKm: getDistanceKm(originLat, originLon, latitude, longitude),
         mapUrl: `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`,
       }
     })
     .filter(Boolean)
-    .sort((a, b) => a.distanceKm - b.distanceKm)
+}
 
-  if (hospitals.length < 3) {
-    return fallbackHospitals(lat, lon)
+async function fetchNearbyVeterinaries(lat, lon) {
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+  ]
+  const radiuses = [6000, 12000]
+  const allHospitals = []
+
+  for (const radius of radiuses) {
+    for (const endpoint of endpoints) {
+      try {
+        const elements = await fetchOverpassHospitals({ endpoint, lat, lon, radius })
+        const normalized = normalizeHospitals(elements, lat, lon)
+        allHospitals.push(...normalized)
+      } catch {
+        // 다른 엔드포인트를 계속 시도합니다.
+      }
+    }
+
+    if (allHospitals.length > 0) {
+      break
+    }
   }
 
-  return hospitals.slice(0, 5)
+  const uniqueByLocation = Array.from(
+    new Map(
+      allHospitals.map((item) => [
+        `${item.name}-${item.lat.toFixed(6)}-${item.lon.toFixed(6)}`,
+        item,
+      ]),
+    ).values(),
+  ).sort((a, b) => a.distanceKm - b.distanceKm)
+
+  if (uniqueByLocation.length === 0) {
+    throw new Error('실시간 병원 조회 결과가 없어요.')
+  }
+
+  return uniqueByLocation.slice(0, 5)
 }
 
 function HealthPage() {
@@ -149,10 +182,9 @@ function HealthPage() {
           setMessage(`주변 동물병원 ${nearby.length}곳을 찾았어요.`)
           setIsError(false)
         } catch {
-          const fallback = fallbackHospitals(latitude, longitude)
-          setHospitals(fallback)
-          setMessage('실시간 조회가 어려워서 기본 주변 병원 목록을 먼저 보여드려요.')
-          setIsError(false)
+          setHospitals([])
+          setMessage('실시간 병원 조회가 지연되고 있어요. 잠시 뒤 다시 시도해 주세요.')
+          setIsError(true)
         } finally {
           setIsLoadingHospitals(false)
         }
