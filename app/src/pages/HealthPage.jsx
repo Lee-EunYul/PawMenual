@@ -55,7 +55,7 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
 
 async function fetchNominatimHospitals(lat, lon) {
   const queries = ['동물병원', 'veterinary clinic']
-  const deltas = [0.08, 0.2, 0.35]
+  const deltas = [0.08, 0.2, 0.35, 0.6]
   const collected = []
 
   for (const delta of deltas) {
@@ -131,17 +131,17 @@ async function fetchNearbyVeterinaries(lat, lon) {
   }
 
   // 가까운 병원을 우선 추천하기 위해 반경을 단계적으로 적용합니다.
-  const distanceTiersKm = [3, 7, 12]
+  const distanceTiersKm = [3, 7, 12, 25, 50]
 
   for (const tierKm of distanceTiersKm) {
     const nearbyInTier = hospitals.filter((item) => item.distanceKm <= tierKm)
 
     if (nearbyInTier.length > 0) {
-      return nearbyInTier.slice(0, 5)
+      return nearbyInTier.slice(0, 7)
     }
   }
 
-  throw new Error('가까운 반경 내 동물병원을 찾지 못했어요.')
+  return hospitals.slice(0, 7)
 }
 
 function HealthPage() {
