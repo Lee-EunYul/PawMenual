@@ -101,6 +101,51 @@ function normalizeHospitals(elements, originLat, originLon) {
     .filter(Boolean)
 }
 
+async function fetchNominatimHospitals(lat, lon) {
+  const latDelta = 0.08
+  const lonDelta = 0.08
+  const left = lon - lonDelta
+  const right = lon + lonDelta
+  const top = lat + latDelta
+  const bottom = lat - latDelta
+  const url =
+    `https://nominatim.openstreetmap.org/search?` +
+    `format=jsonv2&q=${encodeURIComponent('동물병원 veterinary')}` +
+    `&limit=20&bounded=1&viewbox=${left},${top},${right},${bottom}`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error('보조 병원 검색에 실패했어요.')
+  }
+
+  const data = await response.json()
+
+  const hospitals = (Array.isArray(data) ? data : [])
+    .map((item) => {
+      const latitude = Number(item.lat)
+      const longitude = Number(item.lon)
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return null
+      }
+
+      const name = item.display_name?.split(',')[0]?.trim() || '이름이 확인되지 않은 동물병원'
+
+      return {
+        id: `nominatim-${item.place_id}`,
+        name,
+        lat: latitude,
+        lon: longitude,
+        distanceKm: getDistanceKm(lat, lon, latitude, longitude),
+        mapUrl: `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`,
+      }
+    })
+    .filter(Boolean)
+
+  return hospitals.sort((a, b) => a.distanceKm - b.distanceKm)
+}
+
 async function fetchNearbyVeterinaries(lat, lon) {
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
@@ -133,6 +178,20 @@ async function fetchNearbyVeterinaries(lat, lon) {
       ]),
     ).values(),
   ).sort((a, b) => a.distanceKm - b.distanceKm)
+
+  if (uniqueByLocation.length > 0) {
+    return uniqueByLocation.slice(0, 5)
+  }
+
+  try {
+    const nominatimHospitals = await fetchNominatimHospitals(lat, lon)
+
+    if (nominatimHospitals.length > 0) {
+      return nominatimHospitals.slice(0, 5)
+    }
+  } catch {
+    // 보조 API 실패 시 최종 오류를 반환합니다.
+  }
 
   if (uniqueByLocation.length === 0) {
     throw new Error('실시간 병원 조회 결과가 없어요.')
