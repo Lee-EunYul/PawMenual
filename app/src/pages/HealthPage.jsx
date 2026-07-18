@@ -102,48 +102,73 @@ function normalizeHospitals(elements, originLat, originLon) {
 }
 
 async function fetchNominatimHospitals(lat, lon) {
-  const latDelta = 0.08
-  const lonDelta = 0.08
-  const left = lon - lonDelta
-  const right = lon + lonDelta
-  const top = lat + latDelta
-  const bottom = lat - latDelta
-  const url =
-    `https://nominatim.openstreetmap.org/search?` +
-    `format=jsonv2&q=${encodeURIComponent('동물병원 veterinary')}` +
-    `&limit=20&bounded=1&viewbox=${left},${top},${right},${bottom}`
+  const queries = ['동물병원', 'veterinary clinic']
+  const deltas = [0.08, 0.2, 0.35]
+  const collected = []
 
-  const response = await fetch(url)
+  for (const delta of deltas) {
+    const left = lon - delta
+    const right = lon + delta
+    const top = lat + delta
+    const bottom = lat - delta
 
-  if (!response.ok) {
-    throw new Error('보조 병원 검색에 실패했어요.')
+    for (const query of queries) {
+      const url =
+        `https://nominatim.openstreetmap.org/search?` +
+        `format=jsonv2&q=${encodeURIComponent(query)}` +
+        `&limit=20&bounded=1&viewbox=${left},${top},${right},${bottom}`
+
+      const response = await fetch(url, {
+        headers: {
+          'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.7',
+        },
+      })
+
+      if (!response.ok) {
+        continue
+      }
+
+      const data = await response.json()
+      const hospitals = (Array.isArray(data) ? data : [])
+        .map((item) => {
+          const latitude = Number(item.lat)
+          const longitude = Number(item.lon)
+
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            return null
+          }
+
+          const name = item.display_name?.split(',')[0]?.trim() || '이름이 확인되지 않은 동물병원'
+
+          return {
+            id: `nominatim-${item.place_id}`,
+            name,
+            lat: latitude,
+            lon: longitude,
+            distanceKm: getDistanceKm(lat, lon, latitude, longitude),
+            mapUrl: `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`,
+          }
+        })
+        .filter(Boolean)
+
+      collected.push(...hospitals)
+    }
+
+    if (collected.length > 0) {
+      break
+    }
   }
 
-  const data = await response.json()
+  const uniqueHospitals = Array.from(
+    new Map(
+      collected.map((item) => [
+        `${item.name}-${item.lat.toFixed(6)}-${item.lon.toFixed(6)}`,
+        item,
+      ]),
+    ).values(),
+  )
 
-  const hospitals = (Array.isArray(data) ? data : [])
-    .map((item) => {
-      const latitude = Number(item.lat)
-      const longitude = Number(item.lon)
-
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        return null
-      }
-
-      const name = item.display_name?.split(',')[0]?.trim() || '이름이 확인되지 않은 동물병원'
-
-      return {
-        id: `nominatim-${item.place_id}`,
-        name,
-        lat: latitude,
-        lon: longitude,
-        distanceKm: getDistanceKm(lat, lon, latitude, longitude),
-        mapUrl: `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`,
-      }
-    })
-    .filter(Boolean)
-
-  return hospitals.sort((a, b) => a.distanceKm - b.distanceKm)
+  return uniqueHospitals.sort((a, b) => a.distanceKm - b.distanceKm)
 }
 
 async function fetchNearbyVeterinaries(lat, lon) {
