@@ -130,7 +130,18 @@ async function fetchNearbyVeterinaries(lat, lon) {
     throw new Error('실시간 병원 조회 결과가 없어요.')
   }
 
-  return hospitals.slice(0, 5)
+  // 가까운 병원을 우선 추천하기 위해 반경을 단계적으로 적용합니다.
+  const distanceTiersKm = [3, 7, 12]
+
+  for (const tierKm of distanceTiersKm) {
+    const nearbyInTier = hospitals.filter((item) => item.distanceKm <= tierKm)
+
+    if (nearbyInTier.length > 0) {
+      return nearbyInTier.slice(0, 5)
+    }
+  }
+
+  throw new Error('가까운 반경 내 동물병원을 찾지 못했어요.')
 }
 
 function HealthPage() {
@@ -175,7 +186,7 @@ function HealthPage() {
           setIsError(false)
         } catch {
           setHospitals([])
-          setMessage('실시간 병원 조회가 지연되고 있어요. 잠시 뒤 다시 시도해 주세요.')
+          setMessage('가까운 반경에서 병원을 찾지 못했어요. 위치를 다시 확인한 뒤 재시도해 주세요.')
           setIsError(true)
         } finally {
           setIsLoadingHospitals(false)
