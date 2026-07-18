@@ -87,16 +87,6 @@ PawMenual/
 └─ 기획서.md            # 프로젝트 기획 문서
 ```
 
-## 6) 로컬 실행 방법
-
-```bash
-cd app
-npm install
-npm run dev
-```
-
-브라우저에서 안내되는 로컬 주소로 접속하세요.
-
 ---
 
 ## 개발자
