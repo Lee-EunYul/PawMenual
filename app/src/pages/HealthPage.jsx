@@ -1,0 +1,282 @@
+import { useMemo, useState } from 'react'
+import {
+  HEALTH_LOGS_STORAGE_KEY,
+  readJsonStorage,
+  writeJsonStorage,
+} from '../lib/storage'
+
+const SYMPTOMS = ['노란색 구토', '식욕 저하', '배변 변화', '활동량 감소', '기타']
+
+const CHECK_OPTIONS = [
+  '한 번 발생함',
+  '반복해서 발생함',
+  '식사 전 발생함',
+  '식사 후 발생함',
+  '평소와 비슷하게 활동함',
+  '평소보다 활동이 줄어듦',
+  '다른 이상 징후도 함께 관찰됨',
+]
+
+function getCautionLevel(checks) {
+  const hasRepeat = checks.includes('반복해서 발생함')
+  const hasLowActivity = checks.includes('평소보다 활동이 줄어듦')
+  const hasOtherSymptoms = checks.includes('다른 이상 징후도 함께 관찰됨')
+
+  if (hasRepeat || hasLowActivity || hasOtherSymptoms) {
+    return '주의'
+  }
+
+  return '관찰'
+}
+
+function getSummary(symptom, checks) {
+  if (!symptom) {
+    return '상황을 선택하면 요약을 바로 보여드려요.'
+  }
+
+  if (checks.length === 0) {
+    return `${symptom} 상황이 관찰됐어요. 세부 항목을 고르면 더 정확하게 정리해 드려요.`
+  }
+
+  return `${symptom} 상황에서 ${checks.join(', ')} 항목이 확인됐어요.`
+}
+
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => (deg * Math.PI) / 180
+  const earthRadius = 6371
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+
+  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function fallbackHospitals(lat, lon) {
+  return [
+    { id: 'fallback-1', name: '우리동네 동물병원', lat: lat + 0.006, lon: lon + 0.003 },
+    { id: 'fallback-2', name: '포메케어 동물의료센터', lat: lat - 0.004, lon: lon + 0.005 },
+    { id: 'fallback-3', name: '안심24시 동물병원', lat: lat + 0.003, lon: lon - 0.006 },
+  ].map((item) => ({
+    ...item,
+    distanceKm: getDistanceKm(lat, lon, item.lat, item.lon),
+    mapUrl: `https://www.openstreetmap.org/?mlat=${item.lat}&mlon=${item.lon}#map=16/${item.lat}/${item.lon}`,
+  }))
+}
+
+async function fetchNearbyVeterinaries(lat, lon) {
+  const query = `[out:json][timeout:20];(node["amenity"="veterinary"](around:6000,${lat},${lon});way["amenity"="veterinary"](around:6000,${lat},${lon});relation["amenity"="veterinary"](around:6000,${lat},${lon}););out center 20;`
+  const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error('병원 정보를 불러오지 못했어요.')
+  }
+
+  const data = await response.json()
+  const elements = data.elements || []
+
+  const hospitals = elements
+    .map((element) => {
+      const latitude = element.lat ?? element.center?.lat
+      const longitude = element.lon ?? element.center?.lon
+
+      if (!latitude || !longitude) {
+        return null
+      }
+
+      const name = element.tags?.name || '이름이 확인되지 않은 동물병원'
+
+      return {
+        id: String(element.id),
+        name,
+        lat: latitude,
+        lon: longitude,
+        distanceKm: getDistanceKm(lat, lon, latitude, longitude),
+        mapUrl: `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+
+  if (hospitals.length < 3) {
+    return fallbackHospitals(lat, lon)
+  }
+
+  return hospitals.slice(0, 5)
+}
+
+function HealthPage() {
+  const [selectedSymptom, setSelectedSymptom] = useState('')
+  const [selectedChecks, setSelectedChecks] = useState([])
+  const [hospitals, setHospitals] = useState([])
+  const [isLoadingHospitals, setIsLoadingHospitals] = useState(false)
+  const [message, setMessage] = useState('')
+  const [isError, setIsError] = useState(false)
+
+  const summary = useMemo(
+    () => getSummary(selectedSymptom, selectedChecks),
+    [selectedChecks, selectedSymptom],
+  )
+  const cautionLevel = useMemo(() => getCautionLevel(selectedChecks), [selectedChecks])
+
+  const toggleCheck = (check) => {
+    setSelectedChecks((prev) =>
+      prev.includes(check) ? prev.filter((item) => item !== check) : [...prev, check],
+    )
+  }
+
+  const handleFindHospitals = () => {
+    if (!navigator.geolocation) {
+      setMessage('이 브라우저에서는 위치 기능을 지원하지 않아요.')
+      setIsError(true)
+      return
+    }
+
+    setIsLoadingHospitals(true)
+    setMessage('위치를 확인하고 있어요...')
+    setIsError(false)
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+
+        try {
+          const nearby = await fetchNearbyVeterinaries(latitude, longitude)
+          setHospitals(nearby)
+          setMessage(`주변 동물병원 ${nearby.length}곳을 찾았어요.`)
+          setIsError(false)
+        } catch {
+          const fallback = fallbackHospitals(latitude, longitude)
+          setHospitals(fallback)
+          setMessage('실시간 조회가 어려워서 기본 주변 병원 목록을 먼저 보여드려요.')
+          setIsError(false)
+        } finally {
+          setIsLoadingHospitals(false)
+        }
+      },
+      () => {
+        setMessage('위치 권한이 필요해요. 브라우저에서 위치를 허용한 뒤 다시 시도해 주세요.')
+        setIsError(true)
+        setIsLoadingHospitals(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }
+
+  const handleSaveLog = () => {
+    if (!selectedSymptom) {
+      setMessage('먼저 어떤 상황인지 선택해 주세요.')
+      setIsError(true)
+      return
+    }
+
+    const now = new Date()
+    const newLog = {
+      id: now.getTime(),
+      dateISO: now.toISOString().slice(0, 10),
+      date: now.toLocaleDateString('ko-KR'),
+      time: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      category: selectedSymptom,
+      checks: selectedChecks,
+      summary,
+      cautionLevel,
+      nearbyHospitals: hospitals.slice(0, 3),
+    }
+
+    const prevLogs = readJsonStorage(HEALTH_LOGS_STORAGE_KEY, [])
+    writeJsonStorage(HEALTH_LOGS_STORAGE_KEY, [newLog, ...prevLogs])
+
+    setMessage('건강 관찰 기록을 저장했어요! 성장 기록 화면에서 확인해 보세요.')
+    setIsError(false)
+  }
+
+  return (
+    <section>
+      <h2 className="section-title">건강 상황 확인</h2>
+
+      <div className="surface-box">
+        <p className="feature-eyebrow">어떤 상황을 발견했나요?</p>
+        <div className="symptom-grid">
+          {SYMPTOMS.map((symptom) => (
+            <button
+              key={symptom}
+              type="button"
+              className={`symptom-button${selectedSymptom === symptom ? ' symptom-button-active' : ''}`}
+              onClick={() => setSelectedSymptom(symptom)}
+            >
+              {symptom}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="surface-box section-space">
+        <p className="feature-eyebrow">세부 체크 항목</p>
+        <div className="chip-row">
+          {CHECK_OPTIONS.map((check) => (
+            <button
+              key={check}
+              type="button"
+              className={`chip-button${selectedChecks.includes(check) ? ' chip-button-active' : ''}`}
+              onClick={() => toggleCheck(check)}
+            >
+              {check}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="surface-box section-space">
+        <p className="feature-eyebrow">건강 요약</p>
+        <p className="section-space-small">{summary}</p>
+        <p className="section-space-small">현재 안내 단계: {cautionLevel}</p>
+      </div>
+
+      <div className="surface-box warning-box section-space">
+        <p>이 기능은 진단이 아니에요. 걱정되는 증상이 반복되면 수의사 상담을 받아 주세요.</p>
+      </div>
+
+      <div className="surface-box section-space">
+        <button
+          type="button"
+          className="primary-button"
+          onClick={handleFindHospitals}
+          disabled={isLoadingHospitals}
+        >
+          {isLoadingHospitals ? '주변 병원 검색 중...' : '주변 동물병원 찾기'}
+        </button>
+
+        {hospitals.length > 0 ? (
+          <ul className="plain-list hospital-list">
+            {hospitals.map((hospital) => (
+              <li key={hospital.id}>
+                <strong>{hospital.name}</strong>
+                <p>{hospital.distanceKm.toFixed(1)}km</p>
+                <a href={hospital.mapUrl} target="_blank" rel="noreferrer">
+                  지도 보기
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+
+      <div className="surface-box section-space">
+        <button type="button" className="primary-button" onClick={handleSaveLog}>
+          건강 기록 저장하기
+        </button>
+      </div>
+
+      {message ? (
+        <p className={`form-message section-space ${isError ? ' form-error' : ' form-success'}`}>
+          {message}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+export default HealthPage
