@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import {
   MEAL_LOGS_STORAGE_KEY,
@@ -197,6 +198,12 @@ function FoodGuidePage() {
   return (
     <section>
       <h2 className="section-title">식생활 가이드</h2>
+
+      <Link className="surface-box" to="/care/health">
+        <p className="feature-eyebrow">케어 체크리스트</p>
+        <h3>예방접종/심장사상충 일정 보러가기</h3>
+        <p>건강 화면에서 나이별 일정과 체크리스트를 확인할 수 있어요.</p>
+      </Link>
 
       <div className="surface-box recommendation-box">
         <p className="feature-eyebrow">맞춤 추천</p>
