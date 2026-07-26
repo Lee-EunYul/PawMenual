@@ -1,9 +1,20 @@
-import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import {
+  CARE_CHECKLIST_STORAGE_KEY,
+  CARE_LOGS_STORAGE_KEY,
+  CARE_REMINDER_LOG_STORAGE_KEY,
   HEALTH_LOGS_STORAGE_KEY,
+  PROFILE_STORAGE_KEY,
   readJsonStorage,
   writeJsonStorage,
 } from '../lib/storage'
+import {
+  buildCareSchedule,
+  getCareStatus,
+  getDateDiffDays,
+  getUpcomingReminders,
+} from '../lib/careSchedule'
 
 const SYMPTOMS = ['노란색 구토', '식욕 저하', '배변 변화', '활동량 감소', '기타']
 
@@ -39,6 +50,34 @@ function getSummary(symptom, checks) {
   }
 
   return `${symptom} 상황에서 ${checks.join(', ')} 항목이 확인됐어요.`
+}
+
+function getReminderText(diffDays) {
+  if (diffDays < 0) {
+    return `${Math.abs(diffDays)}일 지났어요.`
+  }
+
+  if (diffDays === 0) {
+    return '오늘 일정이에요.'
+  }
+
+  return `${diffDays}일 남았어요.`
+}
+
+function getStatusClassName(status) {
+  if (status === '완료') {
+    return 'care-status-done'
+  }
+
+  if (status === '임박') {
+    return 'care-status-urgent'
+  }
+
+  if (status === '지남') {
+    return 'care-status-overdue'
+  }
+
+  return 'care-status-upcoming'
 }
 
 function getDistanceKm(lat1, lon1, lat2, lon2) {
@@ -134,12 +173,78 @@ async function fetchNearbyVeterinaries(lat, lon) {
 }
 
 function HealthPage() {
+  const [profile, setProfile] = useState(null)
+  const [careChecklist, setCareChecklist] = useState({})
   const [selectedSymptom, setSelectedSymptom] = useState('')
   const [selectedChecks, setSelectedChecks] = useState([])
   const [hospitals, setHospitals] = useState([])
   const [isLoadingHospitals, setIsLoadingHospitals] = useState(false)
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
+
+  useEffect(() => {
+    setProfile(readJsonStorage(PROFILE_STORAGE_KEY, null))
+    setCareChecklist(readJsonStorage(CARE_CHECKLIST_STORAGE_KEY, {}))
+  }, [])
+
+  const careItems = useMemo(() => {
+    if (!profile?.ageMonths && profile?.ageMonths !== 0) {
+      return []
+    }
+
+    return buildCareSchedule(profile)
+  }, [profile])
+
+  const reminders = useMemo(
+    () => getUpcomingReminders(careItems, careChecklist, 14),
+    [careItems, careChecklist],
+  )
+
+  const visibleChecklist = useMemo(() => {
+    return careItems
+      .filter((item) => {
+        const diffDays = getDateDiffDays(item.dueDateISO)
+        return diffDays >= -45 && diffDays <= 90
+      })
+      .slice(0, 20)
+  }, [careItems])
+
+  const careSummary = useMemo(() => {
+    const total = visibleChecklist.length
+    const done = visibleChecklist.filter((item) => careChecklist[item.id]).length
+    return { total, done, pending: Math.max(0, total - done) }
+  }, [careChecklist, visibleChecklist])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return
+    }
+
+    if (Notification.permission !== 'granted') {
+      return
+    }
+
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const reminderLog = readJsonStorage(CARE_REMINDER_LOG_STORAGE_KEY, {})
+    const targets = reminders.filter((item) => item.diffDays >= 0 && item.diffDays <= 3).slice(0, 2)
+    let hasUpdates = false
+
+    targets.forEach((item) => {
+      if (reminderLog[item.id] === todayISO) {
+        return
+      }
+
+      new Notification('PAWMENUAL 케어 알림', {
+        body: `${item.title} · ${getReminderText(item.diffDays)}`,
+      })
+      reminderLog[item.id] = todayISO
+      hasUpdates = true
+    })
+
+    if (hasUpdates) {
+      writeJsonStorage(CARE_REMINDER_LOG_STORAGE_KEY, reminderLog)
+    }
+  }, [reminders])
 
   const summary = useMemo(
     () => getSummary(selectedSymptom, selectedChecks),
@@ -217,9 +322,149 @@ function HealthPage() {
     setIsError(false)
   }
 
+  const handleToggleCareComplete = (item) => {
+    const now = new Date()
+
+    setCareChecklist((prev) => {
+      const next = { ...prev }
+
+      if (next[item.id]) {
+        delete next[item.id]
+      } else {
+        next[item.id] = {
+          checkedAt: now.toISOString(),
+          checkedDate: now.toLocaleDateString('ko-KR'),
+        }
+
+        const prevCareLogs = readJsonStorage(CARE_LOGS_STORAGE_KEY, [])
+        const newCareLog = {
+          id: now.getTime(),
+          dateISO: now.toISOString().slice(0, 10),
+          date: now.toLocaleDateString('ko-KR'),
+          time: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+          title: item.title,
+          category: item.category,
+          dueDateISO: item.dueDateISO,
+        }
+
+        writeJsonStorage(CARE_LOGS_STORAGE_KEY, [newCareLog, ...prevCareLogs])
+      }
+
+      writeJsonStorage(CARE_CHECKLIST_STORAGE_KEY, next)
+      return next
+    })
+  }
+
+  const handleEnableNotification = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setMessage('이 브라우저에서는 알림 기능을 지원하지 않아요.')
+      setIsError(true)
+      return
+    }
+
+    const permission = await Notification.requestPermission()
+
+    if (permission === 'granted') {
+      setMessage('브라우저 알림을 켰어요. 일정이 가까워지면 알려드릴게요.')
+      setIsError(false)
+      return
+    }
+
+    setMessage('알림 권한이 허용되지 않아 앱 내부 안내로만 알려드릴게요.')
+    setIsError(true)
+  }
+
   return (
     <section>
       <h2 className="section-title">건강 상황 확인</h2>
+
+      <div className="surface-box recommendation-box">
+        <p className="feature-eyebrow">예방접종 · 건강 일정</p>
+        {profile?.name ? (
+          <>
+            <h3>{profile.name} 맞춤 일정이 자동 생성됐어요</h3>
+            <p>
+              현재 나이 {Number(profile.ageMonths || 0)}개월 기준으로 예방접종, 심장사상충, 구충 일정을
+              정리했어요.
+            </p>
+          </>
+        ) : (
+          <>
+            <h3>프로필을 먼저 등록해 주세요</h3>
+            <p>나이 정보를 기반으로 일정이 자동 생성돼요.</p>
+            <Link className="chip-button section-space-small" to="/profile">
+              프로필 등록하러 가기
+            </Link>
+          </>
+        )}
+      </div>
+
+      {profile?.name ? (
+        <>
+          <div className="surface-box section-space">
+            <p className="feature-eyebrow">다가오는 일정 알림</p>
+            <p className="section-space-small">
+              체크리스트 {careSummary.done}/{careSummary.total} 완료 · 남은 일정 {careSummary.pending}개
+            </p>
+            {reminders.length === 0 ? (
+              <p className="section-space-small">14일 이내 예정된 일정이 없어요.</p>
+            ) : (
+              <ul className="plain-list section-space-small care-reminder-list">
+                {reminders.slice(0, 5).map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.title}</strong>
+                    <p>
+                      {item.dueDateLabel} · {getReminderText(item.diffDays)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <button type="button" className="chip-button section-space-small" onClick={handleEnableNotification}>
+              브라우저 알림 켜기
+            </button>
+          </div>
+
+          <div className="surface-box section-space">
+            <p className="feature-eyebrow">예방접종/구충 체크리스트</p>
+            {visibleChecklist.length === 0 ? (
+              <p className="section-space-small">프로필 나이를 저장하면 체크리스트가 보여요.</p>
+            ) : (
+              <ul className="plain-list care-checklist section-space-small">
+                {visibleChecklist.map((item) => {
+                  const status = getCareStatus(item, careChecklist)
+                  const doneInfo = careChecklist[item.id]
+
+                  return (
+                    <li key={item.id} className="care-check-item">
+                      <div>
+                        <div className="care-item-head">
+                          <strong>{item.title}</strong>
+                          <span className={`care-status-badge ${getStatusClassName(status)}`}>{status}</span>
+                        </div>
+                        <p>
+                          {item.category} · {item.dueDateLabel} · {item.dueAgeMonths}개월차
+                        </p>
+                        <p>{item.note}</p>
+                        {doneInfo ? <p>완료일: {doneInfo.checkedDate}</p> : null}
+                      </div>
+
+                      <button
+                        type="button"
+                        className={`chip-button ${doneInfo ? 'chip-button-active' : ''}`}
+                        onClick={() => handleToggleCareComplete(item)}
+                      >
+                        {doneInfo ? '완료 취소' : '완료 체크'}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        </>
+      ) : null}
 
       <div className="surface-box">
         <p className="feature-eyebrow">어떤 상황을 발견했나요?</p>

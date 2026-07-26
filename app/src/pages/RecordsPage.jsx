@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
+  CARE_LOGS_STORAGE_KEY,
   HEALTH_LOGS_STORAGE_KEY,
   MEAL_LOGS_STORAGE_KEY,
   TRAINING_LOGS_STORAGE_KEY,
   readJsonStorage,
 } from '../lib/storage'
 
-const TYPE_FILTERS = ['전체', '식사', '건강', '훈련']
+const TYPE_FILTERS = ['전체', '식사', '건강', '훈련', '케어']
 
 function normalizeDateFromLog(log) {
   if (log.dateISO) {
@@ -26,6 +27,7 @@ function RecordsPage() {
   const [mealLogs, setMealLogs] = useState([])
   const [healthLogs, setHealthLogs] = useState([])
   const [trainingLogs, setTrainingLogs] = useState([])
+  const [careLogs, setCareLogs] = useState([])
   const [typeFilter, setTypeFilter] = useState('전체')
   const [dateFilter, setDateFilter] = useState('')
 
@@ -33,6 +35,7 @@ function RecordsPage() {
     setMealLogs(readJsonStorage(MEAL_LOGS_STORAGE_KEY, []))
     setHealthLogs(readJsonStorage(HEALTH_LOGS_STORAGE_KEY, []))
     setTrainingLogs(readJsonStorage(TRAINING_LOGS_STORAGE_KEY, []))
+    setCareLogs(readJsonStorage(CARE_LOGS_STORAGE_KEY, []))
   }, [])
 
   const integratedLogs = [
@@ -62,6 +65,15 @@ function RecordsPage() {
       dateISO: normalizeDateFromLog(log),
       title: `${log.trainingType} ${log.step}단계 · ${log.result}`,
       description: log.nextAction,
+    })),
+    ...careLogs.map((log) => ({
+      id: `care-${log.id}`,
+      type: '케어',
+      date: log.date,
+      time: log.time,
+      dateISO: normalizeDateFromLog(log),
+      title: `${log.title} 완료`,
+      description: `${log.category} · 예정일 ${log.dueDateISO}`,
     })),
   ]
     .sort((a, b) => (a.id < b.id ? 1 : -1))
@@ -132,6 +144,12 @@ function RecordsPage() {
           <p className="feature-eyebrow">훈련</p>
           <h3>{trainingLogs.length}건</h3>
           <p>저장해 둔 훈련 진행 기록이에요.</p>
+        </article>
+
+        <article className="feature-card">
+          <p className="feature-eyebrow">케어</p>
+          <h3>{careLogs.length}건</h3>
+          <p>예방접종/구충 체크 완료 기록이에요.</p>
         </article>
       </div>
 

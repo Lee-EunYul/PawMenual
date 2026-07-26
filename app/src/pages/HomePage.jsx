@@ -1,16 +1,20 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import pawIcon from '../assets/paw.svg'
 import {
+  CARE_CHECKLIST_STORAGE_KEY,
   HEALTH_LOGS_STORAGE_KEY,
   MEAL_LOGS_STORAGE_KEY,
   PROFILE_STORAGE_KEY,
   TRAINING_LOGS_STORAGE_KEY,
   readJsonStorage,
 } from '../lib/storage'
+import { buildCareSchedule, getUpcomingReminders } from '../lib/careSchedule'
 
 function HomePage() {
   const [latestMeal, setLatestMeal] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [careChecklist, setCareChecklist] = useState({})
   const [profileName, setProfileName] = useState('우리 강아지')
   const [summary, setSummary] = useState({ meal: 0, health: 0, training: 0 })
 
@@ -20,16 +24,29 @@ function HomePage() {
     const trainingLogs = readJsonStorage(TRAINING_LOGS_STORAGE_KEY, [])
     const profile = readJsonStorage(PROFILE_STORAGE_KEY, null)
 
+    const careChecks = readJsonStorage(CARE_CHECKLIST_STORAGE_KEY, {})
+
     setLatestMeal(mealLogs[0] || null)
     setSummary({
       meal: mealLogs.length,
       health: healthLogs.length,
       training: trainingLogs.length,
     })
+    setCareChecklist(careChecks)
+    setProfile(profile)
     if (profile?.name) {
       setProfileName(profile.name)
     }
   }, [])
+
+  const reminders = useMemo(() => {
+    if (!profile) {
+      return []
+    }
+
+    const schedule = buildCareSchedule(profile)
+    return getUpcomingReminders(schedule, careChecklist, 7).slice(0, 3)
+  }, [careChecklist, profile])
 
   return (
     <section>
@@ -54,6 +71,27 @@ function HomePage() {
           <p className="feature-eyebrow">훈련</p>
           <h3>{summary.training}건</h3>
         </article>
+      </div>
+
+      <div className="surface-box section-space">
+        <p className="feature-eyebrow">케어 알림</p>
+        {reminders.length === 0 ? (
+          <p className="section-space-small">7일 이내 일정이 없어요. 케어에서 체크리스트를 확인해 보세요.</p>
+        ) : (
+          <>
+            <h3>다가오는 예방 일정 {reminders.length}개</h3>
+            <ul className="plain-list section-space-small">
+              {reminders.map((item) => (
+                <li key={item.id}>
+                  {item.title} · {item.dueDateLabel}
+                </li>
+              ))}
+            </ul>
+            <Link className="chip-button section-space-small" to="/care/health">
+              케어 체크리스트 보러가기
+            </Link>
+          </>
+        )}
       </div>
 
       <Link className="surface-box profile-entry-card section-space" to="/profile">

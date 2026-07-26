@@ -330,6 +330,64 @@ select:focus {
   font-weight: 700;
 }
 
+.care-reminder-list li {
+  border: 1px dashed #e7d7c7;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fffaf5;
+}
+
+.care-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 10px;
+}
+
+.care-check-item {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  background: #fff;
+}
+
+.care-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.care-status-badge {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.care-status-done {
+  background: #dce9d8;
+  color: #27542c;
+}
+
+.care-status-urgent {
+  background: #ffe6cc;
+  color: #8f4e09;
+}
+
+.care-status-overdue {
+  background: #fde9e6;
+  color: #8f2821;
+}
+
+.care-status-upcoming {
+  background: #f1ece5;
+  color: #544a3f;
+}
+
 .training-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
