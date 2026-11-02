@@ -80,104 +80,16 @@ function getStatusClassName(status) {
   return 'care-status-upcoming'
 }
 
-function getDistanceKm(lat1, lon1, lat2, lon2) {
-  const toRad = (deg) => (deg * Math.PI) / 180
-  const earthRadius = 6371
-  const dLat = toRad(lat2 - lat1)
-  const dLon = toRad(lon2 - lon1)
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
-
-  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-async function fetchNominatimHospitals(lat, lon) {
-  const queries = ['동물병원', 'veterinary clinic']
-  const deltas = [0.08, 0.2, 0.35, 0.6]
-  const collected = []
-
-  for (const delta of deltas) {
-    const left = lon - delta
-    const right = lon + delta
-    const top = lat + delta
-    const bottom = lat - delta
-
-    for (const query of queries) {
-      const url =
-        `https://nominatim.openstreetmap.org/search?` +
-        `format=jsonv2&q=${encodeURIComponent(query)}` +
-        `&limit=20&bounded=1&viewbox=${left},${top},${right},${bottom}`
-
-      const response = await fetch(url, {
-        headers: {
-          'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.7',
-        },
-      })
-
-      if (!response.ok) {
-        continue
-      }
-
-      const data = await response.json()
-      const hospitals = (Array.isArray(data) ? data : [])
-        .map((item) => {
-          const latitude = Number(item.lat)
-          const longitude = Number(item.lon)
-
-          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-            return null
-          }
-
-          const name = item.display_name?.split(',')[0]?.trim() || '이름이 확인되지 않은 동물병원'
-
-          return {
-            id: `nominatim-${item.place_id}`,
-            name,
-            lat: latitude,
-            lon: longitude,
-            distanceKm: getDistanceKm(lat, lon, latitude, longitude),
-            mapUrl: `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`,
-          }
-        })
-        .filter(Boolean)
-
-      collected.push(...hospitals)
-    }
-
-    if (collected.length > 0) {
-      break
-    }
-  }
-
-  const uniqueHospitals = Array.from(
-    new Map(
-      collected.map((item) => [
-        `${item.name}-${item.lat.toFixed(6)}-${item.lon.toFixed(6)}`,
-        item,
-      ]),
-    ).values(),
-  )
-
-  return uniqueHospitals.sort((a, b) => a.distanceKm - b.distanceKm)
-}
-
-async function fetchNearbyVeterinaries(lat, lon) {
-  const hospitals = await fetchNominatimHospitals(lat, lon)
-
-  if (hospitals.length === 0) {
-    throw new Error('실시간 병원 조회 결과가 없어요.')
-  }
-
-  return hospitals.slice(0, 7)
-}
-
 function HealthPage() {
   const [profile, setProfile] = useState(null)
   const [careChecklist, setCareChecklist] = useState({})
   const [selectedSymptom, setSelectedSymptom] = useState('')
   const [selectedChecks, setSelectedChecks] = useState([])
   const [hospitals, setHospitals] = useState([])
+  const [searchRadius, setSearchRadius] = useState(5000)
+  const [locationAccuracy, setLocationAccuracy] = useState(null)
+  const [hospitalMessage, setHospitalMessage] = useState('')
+  const [hospitalError, setHospitalError] = useState(false)
   const [isLoadingHospitals, setIsLoadingHospitals] = useState(false)
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
@@ -259,39 +171,53 @@ function HealthPage() {
   }
 
   const handleFindHospitals = () => {
+    setHospitals([])
+    setLocationAccuracy(null)
     if (!navigator.geolocation) {
-      setMessage('이 브라우저에서는 위치 기능을 지원하지 않아요.')
-      setIsError(true)
+      setHospitalMessage('이 브라우저에서는 위치 기능을 지원하지 않아요.')
+      setHospitalError(true)
       return
     }
 
     setIsLoadingHospitals(true)
-    setMessage('위치를 확인하고 있어요...')
-    setIsError(false)
+    setHospitalMessage('현재 위치를 확인하고 있어요...')
+    setHospitalError(false)
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { latitude, longitude } = position.coords
-
+        const { latitude, longitude, accuracy } = position.coords
+        setLocationAccuracy(accuracy)
+        setHospitalMessage('현재 위치 주변 동물병원을 검색하고 있어요...')
         try {
-          const nearby = await fetchNearbyVeterinaries(latitude, longitude)
-          setHospitals(nearby)
-          setMessage(`주변 동물병원 ${nearby.length}곳을 찾았어요.`)
-          setIsError(false)
-        } catch {
-          setHospitals([])
-          setMessage('주변 동물병원 정보를 찾지 못했어요. 위치를 다시 확인한 뒤 재시도해 주세요.')
-          setIsError(true)
+          const response = await fetch('/api/nearby-hospitals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude, longitude, radius: searchRadius }),
+            signal: AbortSignal.timeout(15000),
+          })
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || '병원 검색을 완료하지 못했어요.')
+          setHospitals(data.hospitals)
+          setHospitalMessage(data.hospitals.length
+            ? `현재 위치 반경 ${searchRadius / 1000}km에서 ${data.hospitals.length}곳을 가까운 순으로 찾았어요.${data.hasMore ? ' 검색 서비스의 결과 제한으로 일부만 표시돼요.' : ''}`
+            : `반경 ${searchRadius / 1000}km 내 등록된 동물병원이 검색되지 않았어요. 반경을 넓혀 다시 검색해 주세요.`)
+        } catch (error) {
+          setHospitalMessage(error instanceof SyntaxError || error.name === 'TypeError' || error.name === 'TimeoutError'
+            ? '병원 검색 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.' : error.message)
+          setHospitalError(true)
         } finally {
           setIsLoadingHospitals(false)
         }
       },
-      () => {
-        setMessage('위치 권한이 필요해요. 브라우저에서 위치를 허용한 뒤 다시 시도해 주세요.')
-        setIsError(true)
+      (error) => {
+        setHospitalMessage(error.code === 1
+          ? '위치 접근이 차단됐어요. 브라우저 사이트 설정에서 위치를 허용해 주세요.'
+          : error.code === 3 ? '위치 확인 시간이 초과됐어요. 기기의 위치 서비스를 켜고 다시 시도해 주세요.'
+            : '현재 위치를 확인하지 못했어요. 기기의 위치 서비스와 네트워크를 확인해 주세요.')
+        setHospitalError(true)
         setIsLoadingHospitals(false)
       },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     )
   }
 
@@ -509,28 +435,40 @@ function HealthPage() {
       </div>
 
       <div className="surface-box section-space">
+        <p className="feature-eyebrow">내 주변 동물병원</p>
+        <label className="form-row section-space-small" htmlFor="hospital-radius">
+          검색 반경
+          <select id="hospital-radius" value={searchRadius} disabled={isLoadingHospitals} onChange={(event) => {
+            setSearchRadius(Number(event.target.value))
+            setHospitals([])
+            setHospitalMessage('')
+            setLocationAccuracy(null)
+          }}>
+            {[3000, 5000, 10000, 20000].map(radius => <option key={radius} value={radius}>{radius / 1000}km</option>)}
+          </select>
+        </label>
+        <p className="section-space-small">검색 시 현재 좌표를 병원 검색 서버와 카카오맵에 전달해요.</p>
         <button
           type="button"
           className="primary-button"
           onClick={handleFindHospitals}
           disabled={isLoadingHospitals}
         >
-          {isLoadingHospitals ? '주변 병원 검색 중...' : '주변 동물병원 찾기'}
+          {isLoadingHospitals ? '위치 확인 및 병원 검색 중...' : '현재 위치로 주변 병원 찾기'}
         </button>
 
-        {hospitals.length > 0 ? (
-          <ul className="plain-list hospital-list">
-            {hospitals.map((hospital) => (
-              <li key={hospital.id}>
-                <strong>{hospital.name}</strong>
-                <p>{hospital.distanceKm.toFixed(1)}km</p>
-                <a href={hospital.mapUrl} target="_blank" rel="noreferrer">
-                  지도 보기
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        {hospitalMessage ? <p role={hospitalError ? 'alert' : 'status'} className={`form-message section-space-small ${hospitalError ? 'form-error' : 'form-success'}`}>{hospitalMessage}</p> : null}
+        {Number.isFinite(locationAccuracy) ? <p className="section-space-small">위치 오차 약 {Math.round(locationAccuracy)}m · 거리는 직선거리 기준{locationAccuracy > 1000 ? ' · 위치 오차가 커서 실제 주변과 다를 수 있어요.' : ''}</p> : null}
+        <ul className="plain-list hospital-list">
+          {hospitals.map(hospital => <li key={hospital.id}>
+            <strong>{hospital.name}</strong>
+            <p>{hospital.distanceMeters < 1000 ? `${hospital.distanceMeters}m` : `${hospital.distanceKm.toFixed(1)}km`}</p>
+            <p>{hospital.address}</p>
+            {hospital.phone ? <p>전화: {hospital.phone}</p> : null}
+            <a href={hospital.mapUrl} target="_blank" rel="noreferrer">카카오맵에서 병원 상세 보기</a>
+          </li>)}
+        </ul>
+        <p className="section-space-small">카카오맵 등록 정보 기준으로 최대 45곳까지 조회해요. 모든 병원이나 현재 진료 여부를 보장하지 않으므로 방문 전 병원에 확인해 주세요.</p>
       </div>
 
       <div className="surface-box section-space">

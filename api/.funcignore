@@ -1,0 +1,6 @@
+.env
+.env.*
+local.settings.json
+dev.mjs
+**/*.test.js
+node_modules/

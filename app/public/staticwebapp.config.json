@@ -1,7 +1,17 @@
 {
+  "platform": {
+    "apiRuntime": "node:20"
+  },
+  "routes": [
+    {
+      "route": "/api/food-recommendation",
+      "allowedRoles": ["authenticated"]
+    }
+  ],
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": [
+      "/api/*",
       "/assets/*",
       "/favicon.svg",
       "/icons.svg"

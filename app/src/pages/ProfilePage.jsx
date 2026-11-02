@@ -50,6 +50,17 @@ function ProfilePage() {
       return
     }
 
+    if (!(Number(form.ageMonths) > 0 && Number(form.ageMonths) <= 360)) {
+      setMessage('나이는 개월 단위로 0보다 크고 360 이하로 입력해 주세요. 예: 5살 = 60개월.')
+      setIsError(true)
+      return
+    }
+    if (!(Number(form.weightKg) > 0 && Number(form.weightKg) <= 150)) {
+      setMessage('몸무게는 kg 단위로 0보다 크고 150 이하로 입력해 주세요.')
+      setIsError(true)
+      return
+    }
+
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(form))
     setMessage('저장했어요! 새로고침해도 프로필이 그대로 유지돼요.')
     setIsError(false)
@@ -91,10 +102,13 @@ function ProfilePage() {
               id="ageMonths"
               name="ageMonths"
               type="number"
-              min="0"
+              min="0.1"
+              max="360"
+              step="0.1"
+              required
               value={form.ageMonths}
               onChange={handleChange}
-              placeholder="예: 6"
+              placeholder="예: 5살이면 60"
             />
           </label>
 
@@ -104,7 +118,9 @@ function ProfilePage() {
               id="weightKg"
               name="weightKg"
               type="number"
-              min="0"
+              min="0.1"
+              max="150"
+              required
               step="0.1"
               value={form.weightKg}
               onChange={handleChange}

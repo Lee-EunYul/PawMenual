@@ -1,0 +1,11 @@
+{
+  "name": "pawmenual-api",
+  "private": true,
+  "version": "1.0.0",
+  "engines": { "node": "20.x" },
+  "scripts": {
+    "dev": "node --env-file=.env dev.mjs",
+    "test": "node --test"
+  },
+  "dependencies": { "openai": "^6.0.0" }
+}

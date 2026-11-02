@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
+import { House, HeartPulse, PawPrint, NotebookPen } from 'lucide-react'
 
 const menus = [
-  { to: '/', label: '홈' },
-  { to: '/care/food', label: '케어' },
-  { to: '/training', label: '훈련' },
-  { to: '/records', label: '기록' },
+  { to: '/', label: '홈', icon: House },
+  { to: '/care/food', label: '케어', icon: HeartPulse },
+  { to: '/training', label: '훈련', icon: PawPrint },
+  { to: '/records', label: '기록', icon: NotebookPen },
 ]
 
 function BottomNav() {
@@ -14,11 +15,13 @@ function BottomNav() {
         <NavLink
           key={menu.to}
           to={menu.to}
+          title={menu.label}
           className={({ isActive }) =>
             `nav-item${isActive ? ' nav-item-active' : ''}`
           }
         >
-          {menu.label}
+          <menu.icon size={22} strokeWidth={1.8} aria-hidden="true" />
+          <span>{menu.label}</span>
         </NavLink>
       ))}
     </nav>

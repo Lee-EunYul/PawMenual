@@ -102,6 +102,10 @@ function FoodGuidePage() {
   const [selectedScenario, setSelectedScenario] = useState('자동 분석')
   const [mealLogs, setMealLogs] = useState([])
   const [message, setMessage] = useState('')
+  const [aiResult, setAiResult] = useState(null)
+  const [isLoadingAi, setIsLoadingAi] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [needsLogin, setNeedsLogin] = useState(false)
 
   useEffect(() => {
     const savedProfile = readJsonStorage(PROFILE_STORAGE_KEY, null)
@@ -115,12 +119,12 @@ function FoodGuidePage() {
     }
   }, [])
 
-  const recommendation = useMemo(
+  const basicRecommendation = useMemo(
     () => getRecommendation(profile || {}),
     [profile],
   )
 
-  const feedingDirection = useMemo(() => {
+  const basicFeedingDirection = useMemo(() => {
     const breed = String(profile?.breed || '').toLowerCase()
     const isPomeranian = breed.includes('포메') || breed.includes('pomeranian')
     const latestLog = mealLogs[0]
@@ -178,6 +182,50 @@ function FoodGuidePage() {
     }
   }, [mealLogs, profile, selectedScenario])
 
+  const recommendation = aiResult || basicRecommendation
+  const feedingDirection = aiResult || basicFeedingDirection
+
+  const handleAiRecommend = async () => {
+    setAiError('')
+    setNeedsLogin(false)
+    setAiResult(null)
+    if (!profile?.breed || !(Number(profile.weightKg) > 0) || !(Number(profile.ageMonths) > 0)) {
+      setAiError('프로필에 견종, 나이(개월), 몸무게를 먼저 입력해 주세요.')
+      return
+    }
+    setIsLoadingAi(true)
+    try {
+      const response = await fetch('/api/food-recommendation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile: {
+            breed: profile.breed, weightKg: profile.weightKg, ageMonths: profile.ageMonths,
+            activityLevel: profile.activityLevel, currentFoodType: profile.currentFoodType,
+            foodPreference: profile.foodPreference,
+          },
+          scenario: selectedScenario,
+        }),
+        signal: AbortSignal.timeout(30000),
+      })
+      if (response.status === 401 || response.status === 403) {
+        setNeedsLogin(true)
+        throw new Error('AI 추천을 받으려면 로그인해 주세요.')
+      }
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'AI 추천을 완료하지 못했어요.')
+      }
+      setAiResult(data)
+    } catch (error) {
+      setAiError(error instanceof SyntaxError || error.name === 'TimeoutError' || error.name === 'TypeError'
+        ? 'AI 서버에 연결하지 못했어요. 서버 실행과 환경변수를 확인해 주세요.'
+        : error.message)
+    } finally {
+      setIsLoadingAi(false)
+    }
+  }
+
   const handleReactionSave = (reaction) => {
     const now = new Date()
     const newLog = {
@@ -191,6 +239,7 @@ function FoodGuidePage() {
 
     const updatedLogs = [newLog, ...mealLogs]
     setMealLogs(updatedLogs)
+    setAiResult(null)
     writeJsonStorage(MEAL_LOGS_STORAGE_KEY, updatedLogs)
     setMessage('반응을 저장했어요! 최근 식사 기록에서 바로 확인할 수 있어요.')
   }
@@ -206,9 +255,15 @@ function FoodGuidePage() {
       </Link>
 
       <div className="surface-box recommendation-box">
-        <p className="feature-eyebrow">맞춤 추천</p>
+        <p className="feature-eyebrow">{aiResult ? 'AI 맞춤 추천' : '기본 맞춤 가이드'}</p>
         <h3>추천 급여 방식: {recommendation.recommendedType}</h3>
         <p>{recommendation.reason}</p>
+        <button type="button" className="primary-button section-space-small" onClick={handleAiRecommend} disabled={isLoadingAi || !profile}>
+          {isLoadingAi ? 'AI 추천 중...' : 'AI 사료 추천 받기'}
+        </button>
+        {aiError ? <p role="alert" className="form-message form-error">{aiError}</p> : null}
+        {needsLogin ? <a href="/.auth/login/github?post_login_redirect_uri=/care/food">GitHub 로그인</a> : null}
+        {aiResult ? <p className="section-space-small">{aiResult.caution}</p> : null}
       </div>
 
       <div className="surface-box section-space">
@@ -219,7 +274,12 @@ function FoodGuidePage() {
               key={scenario}
               type="button"
               className={`chip-button${selectedScenario === scenario ? ' chip-button-active' : ''}`}
-              onClick={() => setSelectedScenario(scenario)}
+              onClick={() => {
+                setSelectedScenario(scenario)
+                setAiResult(null)
+                setAiError('')
+              }}
+              disabled={isLoadingAi}
             >
               {scenario}
             </button>
@@ -234,16 +294,27 @@ function FoodGuidePage() {
       </div>
 
       <div className="surface-box section-space">
-        <p className="feature-eyebrow">제품 추천 (실판매 제품명 기준)</p>
+        <p className="feature-eyebrow">{aiResult ? 'AI 맞춤 사료 제품 추천' : '기본 제품 후보'}</p>
+        {aiResult && feedingDirection.products.length === 0 ? (
+          <p>현재 확인된 제품 목록에는 조건에 맞는 후보가 없어요.</p>
+        ) : null}
         <ul className="plain-list section-space-small">
           {feedingDirection.products.map((product) => (
-            <li key={product.name}>
+            <li key={product.id || product.name}>
               <strong>{product.name}</strong>
+              {aiResult ? <p>{product.brand}</p> : null}
+              {aiResult ? <p>{product.foodType} · {product.target}</p> : null}
               <p>{product.reason}</p>
+              {aiResult && product.ingredientsSummary ? <p>주요 원료: {product.ingredientsSummary}</p> : null}
+              {aiResult ? (
+                <a href={product.url} target="_blank" rel="noreferrer">제조사 제품 정보 확인</a>
+              ) : null}
+              {aiResult ? <p>정보 확인일: {product.checkedAt}</p> : null}
             </li>
           ))}
         </ul>
         <p className="section-space-small">
+          {aiResult ? '로얄캐닌·프롬·파미나·브릿의 공식 정보로 확인한 10개 제품 내 추천입니다. 모든 브랜드·제품을 비교한 결과는 아니며 국내 판매 여부와 지역별 성분은 구매처에서 확인해 주세요. 원료 요약은 전체 성분표가 아닙니다. ' : ''}
           구매 전 성분표/연령/알레르기 정보를 꼭 확인해 주세요.
         </p>
       </div>

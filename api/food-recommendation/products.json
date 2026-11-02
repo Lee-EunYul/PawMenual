@@ -1,0 +1,117 @@
+[
+  {
+    "id": "rc-mini-adult",
+    "brand": "로얄캐닌",
+    "name": "로얄캐닌 미니 어덜트",
+    "foodType": "건식",
+    "minAgeMonths": 10,
+    "maxWeightKgExclusive": 10,
+    "target": "생후 10개월 이후 소형견, 성견 체중 10kg 미만. 현재 체중만으로 체형이나 적정 체중을 판단하지 말 것.",
+    "url": "https://www.royalcanin.com/kr/dogs/products/retail-products/mini-adult-3001",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "rc-medium-adult",
+    "brand": "로얄캐닌",
+    "name": "로얄캐닌 미디엄 어덜트",
+    "foodType": "건식",
+    "minAgeMonths": 12,
+    "minWeightKg": 11,
+    "maxWeightKgExclusive": 25,
+    "target": "생후 12개월 이후 중형견, 성견 체중 11kg 이상 25kg 미만.",
+    "url": "https://www.royalcanin.com/kr/dogs/products/retail-products/medium-adult-3004",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "rc-mini-puppy",
+    "brand": "로얄캐닌",
+    "name": "로얄캐닌 미니 퍼피",
+    "foodType": "건식",
+    "minAgeMonths": 2,
+    "maxAgeMonths": 10,
+    "target": "생후 2~10개월 어린 소형견, 성견 시 예상 체중 10kg 미만. 현재 자견 체중을 예상 성견 체중으로 간주하지 말 것.",
+    "url": "https://www.royalcanin.com/kr/dogs/products/retail-products/mini-puppy-3000",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "rc-mini-adult-wet",
+    "brand": "로얄캐닌",
+    "name": "로얄캐닌 미니 어덜트 파우치",
+    "foodType": "습식",
+    "minAgeMonths": 10,
+    "maxWeightKgExclusive": 10,
+    "target": "생후 10개월 이후 소형견, 성견 체중 10kg 미만. 구매 전 성분, 주식용 여부와 급여 지침 확인.",
+    "url": "https://www.royalcanin.com/kr/dogs/products/retail-products/mini-adult-1096",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "fromm-chicken-a-la-veg",
+    "brand": "프롬",
+    "name": "프롬 포스타 치킨 아 라 베지 레시피",
+    "foodType": "건식",
+    "minAgeMonths": 2,
+    "target": "전연령·전견종용 완전균형식. 대형견 성장기 포함 AAFCO 전연령 기준. 이유 전 강아지에게는 추천하지 않음.",
+    "ingredientsSummary": "닭고기, 닭육수, 닭고기분, 오트밀, 보리, 고구마. 생선·계란·치즈 원료도 포함되어 알레르기 확인 필요.",
+    "url": "https://www.frommfamily.com/products/dog/four-star/dry/chicken-a-la-veg-recipe/",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "fromm-salmon-a-la-veg",
+    "brand": "프롬",
+    "name": "프롬 포스타 살몬 아 라 베지 레시피",
+    "foodType": "건식",
+    "minAgeMonths": 2,
+    "target": "전연령·전견종용 완전균형식. 대형견 성장기 포함 AAFCO 전연령 기준. 이유 전 강아지에게는 추천하지 않음.",
+    "ingredientsSummary": "연어, 연어분, 생선육수, 오트밀, 현미, 보리. 닭고기·닭지방·계란·치즈도 포함되어 연어 단일단백질이나 닭고기 무첨가 제품이 아님.",
+    "url": "https://www.frommfamily.com/products/dog/four-star/dry/salmon-a-la-veg-recipe/",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "farmina-ancestral-chicken-mini",
+    "brand": "파미나",
+    "name": "파미나 N&D 앤세스트럴 그레인 치킨 앤 포메그라네이트 어덜트 미니",
+    "foodType": "건식",
+    "minAgeMonths": 12,
+    "maxWeightKgExclusive": 10,
+    "target": "소형 성견용, AAFCO 성견 유지 기준. 앱에서는 보수적으로 12개월 이상·10kg 미만만 후보에 포함하며 이는 제조사의 명시된 개월·kg 경계가 아님. 알갱이 크기와 실제 성견 체격 확인 필요.",
+    "ingredientsSummary": "닭고기, 건조 닭고기, 스펠트, 귀리, 보리, 계란, 돼지고기, 청어, 석류 등. 여러 동물성 원료 포함.",
+    "url": "https://www.farmina.com/us/eshop/dog-food/n&d-ancestral-grain-canine/109-chicken-&-pomegranate-adult-mini.html",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "farmina-ancestral-lamb-mini",
+    "brand": "파미나",
+    "name": "파미나 N&D 앤세스트럴 그레인 램 앤 블루베리 어덜트 미니",
+    "foodType": "건식",
+    "minAgeMonths": 12,
+    "maxWeightKgExclusive": 10,
+    "target": "소형 성견용, AAFCO 성견 유지 기준. 앱에서는 보수적으로 12개월 이상·10kg 미만만 후보에 포함하며 이는 제조사의 명시된 개월·kg 경계가 아님. 실제 체격 확인 필요.",
+    "ingredientsSummary": "양고기, 건조 양고기, 건조 닭고기, 스펠트, 귀리, 계란, 청어, 돼지고기, 블루베리 등. 양고기 단일단백질이나 닭고기 무첨가 제품이 아님.",
+    "url": "https://www.farmina.com/us/eshop/dog-food/n&d-ancestral-grain-canine/119-lamb-&-blueberry-adult-mini.html",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "brit-sensitive-lamb",
+    "brand": "브릿",
+    "name": "브릿 프리미엄 바이 네이처 센서티브 램",
+    "foodType": "건식",
+    "minAgeMonths": 12,
+    "target": "전견종 성견용 완전사료. 앱에서는 성견 판단을 위해 보수적으로 12개월 이상만 후보에 포함함. 소화 질환 치료용 처방식으로 간주하지 말 것.",
+    "ingredientsSummary": "공식 페이지에서 양고기·쌀 기반 확인. 전체 원료 목록은 제조사 페이지 또는 구매 제품 포장에서 확인 필요.",
+    "url": "https://brit.pet/en/products/brit-premium-by-nature-sensitive-lamb",
+    "checkedAt": "2026-11-01"
+  },
+  {
+    "id": "brit-care-adult-small",
+    "brand": "브릿",
+    "name": "브릿 케어 독 하이포알러제닉 어덜트 스몰 브리드",
+    "foodType": "건식",
+    "minAgeMonths": 12,
+    "minWeightKg": 1,
+    "maxWeightKg": 10,
+    "target": "성견 소형견 1~10kg용 완전사료. 앱에서는 보수적으로 12개월 이상만 포함함. 제품명 하이포알러제닉은 개별 알레르기 안전성을 보장하지 않음.",
+    "ingredientsSummary": "공식 페이지에서 양고기·쌀 기반 확인. 전체 원료와 알레르기 유발 가능 원료는 제품 포장에서 추가 확인 필요.",
+    "url": "https://brit.pet/en/products/brit-care-dog-hypoallergenic-adult-small-breed",
+    "checkedAt": "2026-11-01"
+  }
+]
