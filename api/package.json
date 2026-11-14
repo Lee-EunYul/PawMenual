@@ -2,7 +2,7 @@
   "name": "pawmenual-api",
   "private": true,
   "version": "1.0.0",
-  "engines": { "node": "20.x" },
+  "engines": { "node": "22.x" },
   "scripts": {
     "dev": "node --env-file=.env dev.mjs",
     "test": "node --test"

@@ -254,6 +254,12 @@ function FoodGuidePage() {
         <p>건강 화면에서 나이별 일정과 체크리스트를 확인할 수 있어요.</p>
       </Link>
 
+      <Link className="feature-card section-space" to="/food-scan">
+        <p className="feature-eyebrow">PAWMENUAL V2</p>
+        <h3>AI 사료 성분표 분석하기</h3>
+        <p>포장지 사진을 확인하거나 성분 정보를 직접 입력해 정리해요.</p>
+      </Link>
+
       <div className="surface-box recommendation-box">
         <p className="feature-eyebrow">{aiResult ? 'AI 맞춤 추천' : '기본 맞춤 가이드'}</p>
         <h3>추천 급여 방식: {recommendation.recommendedType}</h3>

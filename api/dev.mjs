@@ -1,10 +1,12 @@
 import { createServer } from 'node:http'
 import handler from './food-recommendation/index.js'
 import nearbyHospitals from './nearby-hospitals/index.js'
+import scanFoodLabel from './food-label-scan/index.js'
 
 createServer(async (req, res) => {
   const routes = { '/api/food-recommendation': handler, '/api/nearby-hospitals': nearbyHospitals }
-  const routeHandler = Object.hasOwn(routes, req.url) ? routes[req.url] : null
+  const scanRoute = '/api/scan-food-label'
+  const routeHandler = req.url === scanRoute ? scanFoodLabel : (Object.hasOwn(routes, req.url) ? routes[req.url] : null)
   if (!routeHandler || req.method !== 'POST') {
     res.writeHead(404).end()
     return
@@ -13,7 +15,8 @@ createServer(async (req, res) => {
   try {
     for await (const chunk of req) {
       raw += chunk
-      if (Buffer.byteLength(raw) > 8192) {
+      const maxBodyBytes = req.url === scanRoute ? 7 * 1024 * 1024 : 8192
+      if (Buffer.byteLength(raw) > maxBodyBytes) {
         res.writeHead(413).end()
         return
       }

@@ -6,6 +6,8 @@ import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import RecordsPage from './pages/RecordsPage'
 import TrainingPage from './pages/TrainingPage'
+import CarePassportPage from './pages/CarePassportPage'
+import FoodScanPage from './pages/FoodScanPage'
 
 function App() {
   return (
@@ -15,6 +17,8 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/care/food" element={<FoodGuidePage />} />
         <Route path="/care/health" element={<HealthPage />} />
+        <Route path="/food-scan" element={<FoodScanPage />} />
+        <Route path="/care-passport" element={<CarePassportPage />} />
         <Route path="/training" element={<TrainingPage />} />
         <Route path="/records" element={<RecordsPage />} />
       </Route>

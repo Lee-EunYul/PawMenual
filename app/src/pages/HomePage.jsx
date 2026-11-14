@@ -123,6 +123,23 @@ function HomePage() {
         </Link>
       </div>
 
+      <div className="v2-feature-heading section-space">
+        <p className="feature-eyebrow">PAWMENUAL V2 · NEW</p>
+        <h3>새로운 케어 도구</h3>
+      </div>
+      <div className="card-grid">
+        <Link className="feature-card v2-feature-card" to="/food-scan">
+          <p className="feature-eyebrow">성분표</p>
+          <h3>AI 사료 성분표 스캐너</h3>
+          <p>사진의 원료와 영양 표시를 확인하거나 직접 입력할 수 있어요.</p>
+        </Link>
+        <Link className="feature-card v2-feature-card" to="/care-passport">
+          <p className="feature-eyebrow">케어 패스포트</p>
+          <h3>우리 강아지 케어 패스포트</h3>
+          <p>기존 프로필과 선택한 케어 기록을 PDF로 정리해요.</p>
+        </Link>
+      </div>
+
       <div className="surface-box section-space">
         <p className="feature-eyebrow">최근 식사 반응</p>
         {latestMeal ? (

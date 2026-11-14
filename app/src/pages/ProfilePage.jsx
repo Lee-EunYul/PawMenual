@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { PROFILE_STORAGE_KEY } from '../lib/storage'
 
 const initialProfile = {
@@ -10,6 +11,7 @@ const initialProfile = {
   activityLevel: '보통',
   mealCountPerDay: '3회',
   foodPreference: '',
+  specialNotes: '',
   currentFoodType: '건식',
 }
 
@@ -69,6 +71,12 @@ function ProfilePage() {
   return (
     <section>
       <h2 className="section-title">강아지 프로필</h2>
+
+      <Link className="feature-card section-space" to="/care-passport">
+        <p className="feature-eyebrow">PAWMENUAL V2</p>
+        <h3>우리 강아지 케어 패스포트</h3>
+        <p>저장된 프로필과 케어 기록을 선택해 PDF로 정리해요.</p>
+      </Link>
 
       <form className="surface-box profile-form" onSubmit={handleSubmit}>
         <label className="form-row" htmlFor="name">
@@ -175,6 +183,19 @@ function ProfilePage() {
             value={form.foodPreference}
             onChange={handleChange}
             placeholder="예: 고기 향 선호"
+          />
+        </label>
+
+        <label className="form-row" htmlFor="specialNotes">
+          특이사항 (선택)
+          <textarea
+            id="specialNotes"
+            name="specialNotes"
+            rows="3"
+            maxLength="500"
+            value={form.specialNotes}
+            onChange={handleChange}
+            placeholder="예: 보호자가 기록한 음식 알레르기나 관리 주의사항"
           />
         </label>
 

@@ -6,6 +6,7 @@ export const TRAINING_PROGRESS_STORAGE_KEY = 'pawmenual.trainingProgress.v1'
 export const CARE_CHECKLIST_STORAGE_KEY = 'pawmenual.careChecklist.v1'
 export const CARE_REMINDER_LOG_STORAGE_KEY = 'pawmenual.careReminderLog.v1'
 export const CARE_LOGS_STORAGE_KEY = 'pawmenual.careLogs.v1'
+export const FOOD_LABEL_SCANS_STORAGE_KEY = 'pawmenual.foodLabelScans.v1'
 
 export function readJsonStorage(key, fallbackValue) {
   const raw = localStorage.getItem(key)
