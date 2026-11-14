@@ -1,6 +1,6 @@
 # PAWMENUAL V2 Azure Deployment
 
-Status: Validated
+Status: Deployed
 
 ## Approved Scope
 
@@ -47,11 +47,14 @@ Status: Validated
 	- [x] `api/.env` is Git-ignored; SWA API path/runtime configuration verified.
 	- [x] Node 22 runtime change approved; `staticwebapp.config.json` and `api/package.json` aligned.
 	- [x] Final branch diff check passed before commit.
-	- [ ] Production GitHub Actions verification.
+	- [x] Production GitHub Actions verification.
 
 ## 7. Validation Proof
 
 2026-11-14: Existing Azure Free SWA and subscription verified; existing OpenAI/Kakao app-setting names confirmed without reading values. No new resource or paid plan provisioned.
 `npm --prefix app run build` passed; `npm --prefix api test` passed all 17 tests; targeted V2 ESLint passed. Runtime declaration and package engine both target Node 22 (user approved). Local test runner uses Node 24, which emitted only the expected engine warning during lockfile sync. Full app lint still reports existing V1 effect/state lint errors.
 Browser verified the existing six routes and new `/food-scan` and `/care-passport`. Existing vision deployment analyzed a synthetic label image; missing product name was returned as unknown. Passport print CSS hides app chrome and sensitive sections default off. Manual scanner result save/reopen/delete and file format/size rejection verified; original image is not persisted.
-Production GitHub Actions and post-deploy route/API verification pending.
+2026-11-14: Created and pushed `feature/pawmenual-v2`, then fast-forward merged to production `main` as commit `f60c6f7a9dc5927a0ba5d77f7a85c81ee65e20ce`.
+GitHub Actions deployment run [43544018188](https://github.com/Lee-EunYul/PawMenual/actions/runs/43544018188) completed successfully.
+Production smoke checks: `/`, `/profile`, `/care/food`, `/care/health`, `/training`, `/records`, `/food-scan`, `/care-passport` all returned 200. Existing AI route returned 400 for an empty invalid request (route active); Kakao nearby-hospitals API returned 200 with 44 results for a Seoul test coordinate. Production scanner accepted a 51,154-byte synthetic label image and returned structured nutrient values; missing product name was `확인되지 않음`.
+`az staticwebapp show` confirms the existing resource remains on Free. No new resource was provisioned. The local `.env` was not staged. Existing unrelated untracked `.azure/validate-status.json` and `.github/workflows/copilot-instructions.md` were left untouched.
